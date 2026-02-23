@@ -1860,7 +1860,7 @@ if (roomNumber === 0) {
         mediaStreamSource.connect(analyser);
         
         addMessage('🎤 Микрофон готов (эхоподавление активно)', 'system');
-        initAudioForBackground(); 
+        
 
         return true;
         
@@ -1869,46 +1869,185 @@ if (roomNumber === 0) {
     }
 }
 
+// ========== НОВЫЙ КОД ДЛЯ ФОНОВОЙ РАБОТЫ ==========
 
+// Глобальные переменные для фоновой работы
 
-// Улучшенная инициализация аудио для фоновой работы
-async function initAudioForBackground() {
+let backgroundInterval = null;
+let audioElement = null;
+
+// Настройка поддержки фонового режима
+function setupBackgroundAudioSupport() {
     try {
-        // ИСПРАВЛЕНО: используем другую переменную, не audioContext
-        const backgroundAudioContext = new (window.AudioContext || window.webkitAudioContext)({
-            latencyHint: 'playback',
-            sampleRate: 48000
-        });
-        
-        // Разрешаем аудио контексту работать в фоне
-        if (backgroundAudioContext.resume) {
-            await backgroundAudioContext.resume();
+        // Создаем невидимый аудио элемент для поддержания аудио сессии
+        if (!audioElement) {
+            audioElement = new Audio();
+            audioElement.loop = true;
+            audioElement.volume = 0.01; // Почти беззвучно
+            
+            // Создаем тишину в base64 (1 секунда тишины)
+            const silentAudioBase64 = 'data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8AP8A/gD9APwA+wD6APkA+AD3APYA9QD0APMA8gDxAPAA7wDuAO0A7ADrAOoA6QDoAOcA5gDlAOQA4wDiA+AA';
+            audioElement.src = silentAudioBase64;
+            
+            // Пытаемся воспроизвести (пользовательский жест нужен только первый раз)
+            audioElement.play().catch(e => console.log('Фоновое аудио не запущено:', e));
         }
         
-        // Создаем тихий звук для поддержания аудио сессии
-        const silentBuffer = backgroundAudioContext.createBuffer(1, 1, 22050);
-        const silentSource = backgroundAudioContext.createBufferSource();
-        silentSource.buffer = silentBuffer;
-        silentSource.connect(backgroundAudioContext.destination);
-        silentSource.start();
+        // Сохраняем ссылку на глобальный объект
+        window.backgroundAudioElement = audioElement;
         
-        // Сохраняем ссылку на фоновый контекст, если нужно будет его остановить
-        window.backgroundAudioContext = backgroundAudioContext;
-        
-        return true;
     } catch (err) {
-        console.error('Ошибка инициализации фонового аудио:', err);
-        return false;
+        console.error('Ошибка настройки фонового аудио:', err);
     }
 }
 
-// Добавьте функцию для остановки фонового аудио при завершении звонка
-function stopBackgroundAudio() {
-    if (window.backgroundAudioContext) {
-        window.backgroundAudioContext.close();
-        window.backgroundAudioContext = null;
+// Функция для поддержания аудио в фоне
+function keepAudioAlive() {
+    if (!audioContext) return;
+    
+    // Если контекст приостановлен, возобновляем
+    if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+            console.log('AudioContext возобновлен в фоне');
+        }).catch(e => console.log('Не удалось возобновить AudioContext'));
+    }
+    
+    // Если есть локальный поток, убеждаемся что он активен
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            if (track.kind === 'audio' && !track.enabled && !isMuted) {
+                track.enabled = true;
+            }
+        });
     }
 }
+
+
+
+// Альтернативный метод поддержания активности
+
+// Запрос блокировки сна
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock активирован');
+            
+            wakeLock.addEventListener('release', () => {
+                console.log('Wake Lock освобожден');
+            });
+        } else {
+            console.log('Wake Lock не поддерживается, используем альтернативный метод');
+            startBackgroundKeepAlive();
+        }
+    } catch (err) {
+        console.error('Ошибка Wake Lock:', err);
+        startBackgroundKeepAlive();
+    }
+}
+
+
+function startBackgroundKeepAlive() {
+    if (backgroundInterval) return;
+    
+    backgroundInterval = setInterval(() => {
+        // Отправляем пинг на сервер
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'ping',
+                user: userId,
+                timestamp: Date.now()
+            }));
+        }
+        
+        // Поддерживаем аудио контекст
+        keepAudioAlive();
+        
+    }, 5000); // Каждые 5 секунд
+}
+
+// Остановка фоновой активности
+function stopBackgroundKeepAlive() {
+    if (backgroundInterval) {
+        clearInterval(backgroundInterval);
+        backgroundInterval = null;
+    }
+}
+
+// Освобождение ресурсов
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release().then(() => {
+            wakeLock = null;
+            console.log('Wake Lock освобожден');
+        }).catch(err => console.error('Ошибка освобождения Wake Lock:', err));
+    }
+    stopBackgroundKeepAlive();
+}
+
+// Модифицируем startActiveCall (сохраняем оригинал)
+const originalStartActiveCall = startActiveCall;
+startActiveCall = function(nick) {
+    originalStartActiveCall(nick);
+    requestWakeLock();
+    
+    // Воспроизводим тихий звук для активации аудио
+    if (audioElement) {
+        audioElement.play().catch(e => console.log('Не удалось запустить фоновое аудио'));
+    }
+    
+    // Добавляем обработчик видимости
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+};
+
+// Модифицируем endCall (сохраняем оригинал)
+const originalEndCall = endCall;
+endCall = function() {
+    originalEndCall();
+    releaseWakeLock();
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Останавливаем фоновое аудио
+    if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+    }
+};
+
+// Обработчик изменения видимости
+function handleVisibilityChange() {
+    if (document.hidden) {
+        console.log('Приложение в фоне');
+        
+        // Убеждаемся что аудио поток активен
+        if (localStream && activeCallModal.classList.contains('active')) {
+            localStream.getTracks().forEach(track => {
+                if (track.kind === 'audio') {
+                    track.enabled = true;
+                }
+            });
+            
+            // Запускаем фоновое аудио если его нет
+            if (audioElement && audioElement.paused) {
+                audioElement.play().catch(e => console.log('Не удалось запустить фоновое аудио'));
+            }
+            
+            // Запускаем интервал поддержания соединения
+            startBackgroundKeepAlive();
+        }
+    } else {
+        console.log('Приложение активно');
+        stopBackgroundKeepAlive();
+        
+        // Останавливаем фоновое аудио когда приложение активно
+        if (audioElement && !audioElement.paused) {
+            audioElement.pause();
+        }
+    }
+}
+
+        
+
 
 
 
@@ -2125,7 +2264,7 @@ function stopBackgroundAudio() {
                 audioContext.close();
                 audioContext = null;
             }
-            stopBackgroundAudio(); // Останавливаем фоновое аудио
+
             remoteStream = null;
             currentCaller = null;
             isMuted = false;
@@ -2996,122 +3135,18 @@ document.getElementById('sidebar').addEventListener('touchmove', (e) => {
 
 
 
-// ========== РАБОТА В ФОНОВОМ РЕЖИМЕ ==========
 
-// Предотвращаем засыпание экрана во время звонка
-let wakeLock = null;
 
-// Функция для запроса блокировки сна
-async function requestWakeLock() {
-    try {
-        if ('wakeLock' in navigator) {
-            wakeLock = await navigator.wakeLock.request('screen');
-            console.log('Wake Lock активен');
+
+
+
+
+
+
+
             
-            // Обработка потери блокировки (например, при сворачивании)
-            wakeLock.addEventListener('release', () => {
-                console.log('Wake Lock освобожден');
-            });
-        } else {
-            console.log('Wake Lock не поддерживается браузером');
-            // Альтернативный метод для старых браузеров
-            keepScreenAlive();
-        }
-    } catch (err) {
-        console.error('Ошибка Wake Lock:', err);
-        keepScreenAlive();
-    }
-}
-
-// Альтернативный метод для поддержания активности
-function keepScreenAlive() {
-    // Создаем видео элемент, который будет держать экран активным
-    const video = document.createElement('video');
-    video.style.display = 'none';
-    video.setAttribute('playsinline', 'true');
-    video.setAttribute('loop', 'true');
+           
     
-    // Создаем пустой медиапоток
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(1); // 1 FPS
-    
-    video.srcObject = stream;
-    video.play().catch(e => console.log('Не удалось запустить видео для поддержания активности'));
-    
-    return video;
-}
-
-// Освобождение блокировки сна
-async function releaseWakeLock() {
-    if (wakeLock) {
-        try {
-            await wakeLock.release();
-            wakeLock = null;
-            console.log('Wake Lock освобожден');
-        } catch (err) {
-            console.error('Ошибка освобождения Wake Lock:', err);
-        }
-    }
-}
-
-// Модифицируем функцию startActiveCall
-const originalStartActiveCall = startActiveCall;
-startActiveCall = function(nick) {
-    originalStartActiveCall(nick);
-    requestWakeLock(); // Запрашиваем блокировку сна при начале звонка
-    
-    // Добавляем обработчик видимости страницы
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-}
-
-// Модифицируем функцию endCall
-const originalEndCall = endCall;
-endCall = function() {
-    originalEndCall();
-    releaseWakeLock(); // Освобождаем блокировку сна при завершении звонка
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-}
-
-// Обработчик изменения видимости страницы
-function handleVisibilityChange() {
-    if (document.hidden) {
-        // Страница скрыта (в фоне)
-        console.log('Приложение в фоне');
-        
-        // Если есть активный звонок, продолжаем поддерживать соединение
-        if (activeCallModal.classList.contains('active')) {
-            // Убеждаемся что аудио поток активен
-            if (localStream) {
-                localStream.getTracks().forEach(track => {
-                    if (track.kind === 'audio') {
-                        track.enabled = true;
-                    }
-                });
-            }
-            
-            // Периодически отправляем пинги для поддержания WebSocket
-            if (!window.keepAliveInterval) {
-                window.keepAliveInterval = setInterval(() => {
-                    if (ws && ws.readyState === WebSocket.OPEN && activeCallModal.classList.contains('active')) {
-                        ws.send(JSON.stringify({
-                            type: 'ping',
-                            user: userId,
-                            timestamp: Date.now()
-                        }));
-                    }
-                }, 10000); // Каждые 10 секунд
-            }
-        }
-    } else {
-        // Страница видима
-        console.log('Приложение активно');
-        if (window.keepAliveInterval) {
-            clearInterval(window.keepAliveInterval);
-            window.keepAliveInterval = null;
-        }
-    }
-}
 
 // Регистрируем Service Worker для фоновых уведомлений
 if ('serviceWorker' in navigator) {
@@ -3139,21 +3174,9 @@ if ('mediaSession' in navigator) {
     });
 }
 
-// Принудительно держим аудио контекст активным
-function keepAudioContextAlive() {
-    if (audioContext && audioContext.state === 'suspended') {
-        audioContext.resume().then(() => {
-            console.log('AudioContext возобновлен');
-        });
-    }
-}
 
-// Проверяем состояние AudioContext каждые 5 секунд во время звонка
-setInterval(() => {
-    if (activeCallModal.classList.contains('active') && audioContext) {
-        keepAudioContextAlive();
-    }
-}, 5000);
+
+
 
 
 
