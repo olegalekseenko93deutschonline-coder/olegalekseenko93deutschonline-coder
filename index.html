@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <!-- Для правильной работы в фоне на мобильных -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>VoiceCall Pro - Голосовой мессенджер</title>
     <style>
         * {
@@ -901,6 +906,308 @@
 }
 
 
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    #app {
+        flex-direction: column;
+        height: 100vh;
+        width: 100vw;
+        border-radius: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-width: 100%;
+    }
+
+    body {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    /* Боковая панель в мобильной версии */
+    #sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 35vh;
+        overflow-y: auto;
+        border-right: none;
+        border-bottom: 1px solid #e9ecef;
+        background: #f8f9fa;
+        transition: max-height 0.3s ease;
+    }
+
+    /* Сворачиваемая боковая панель */
+    #sidebar.collapsed {
+        max-height: 60px;
+        overflow: hidden;
+    }
+
+    /* Кнопка для сворачивания/разворачивания боковой панели */
+    #sidebar-toggle {
+        display: block;
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        z-index: 100;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 15px;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    /* Основная область */
+    #main {
+        height: 65vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Заголовок чата */
+    #chat-header {
+        padding: 12px 15px;
+        flex-shrink: 0;
+    }
+
+    #current-room-info {
+        font-size: 16px;
+    }
+
+    /* Контейнер сообщений с правильной прокруткой */
+    #chat-messages {
+        flex: 1 1 auto;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding: 15px;
+        height: calc(65vh - 120px); /* Фиксированная высота с учетом других элементов */
+        max-height: calc(65vh - 120px);
+        scroll-behavior: smooth;
+    }
+
+    /* Стилизация скроллбара для мобильных */
+    #chat-messages::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    #chat-messages::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 4px;
+    }
+
+    /* Сообщения */
+    .message {
+        max-width: 85%;
+        padding: 10px 14px;
+        font-size: 14px;
+        margin-bottom: 8px;
+        word-break: break-word;
+    }
+
+    /* Область ввода сообщения */
+    #message-input-area {
+        padding: 12px 15px;
+        flex-shrink: 0;
+        background: white;
+        border-top: 1px solid #e9ecef;
+    }
+
+    #message-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    #message-input {
+        padding: 12px 15px;
+        font-size: 16px; /* Предотвращает зум на iOS */
+        border-radius: 25px;
+        min-height: 44px; /* Минимальный размер для тач-целей */
+    }
+
+    #send-btn, .attach-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        font-size: 20px;
+    }
+
+    /* Список пользователей */
+    #users-container {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 10px;
+        padding: 10px 0;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+    }
+
+    .user-item {
+        flex: 0 0 auto;
+        width: 80px;
+        flex-direction: column;
+        text-align: center;
+        padding: 10px 5px;
+        scroll-snap-align: start;
+    }
+
+    .user-avatar {
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+
+    .user-name {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 70px;
+    }
+
+    .user-status {
+        font-size: 10px;
+        justify-content: center;
+    }
+
+    .call-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+        margin-top: 5px;
+    }
+
+    /* Модальные окна на мобильных */
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+        margin: 10px;
+    }
+
+    .call-timer {
+        font-size: 36px;
+    }
+
+    .call-controls {
+        flex-wrap: wrap;
+    }
+
+    .call-btn-large {
+        width: 55px;
+        height: 55px;
+        font-size: 24px;
+    }
+
+    /* Файловые сообщения на мобильных */
+    .file-preview {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .file-thumbnail {
+        width: 100%;
+        height: auto;
+        max-height: 150px;
+        object-fit: cover;
+        margin-bottom: 10px;
+    }
+
+    .file-actions {
+        flex-direction: row;
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .file-download-btn,
+    .file-preview-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Индикатор загрузки на мобильных */
+    .upload-progress-overlay {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        width: auto;
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    #sidebar {
+        max-height: 30vh;
+    }
+
+    #main {
+        height: 70vh;
+    }
+
+    #chat-messages {
+        height: calc(70vh - 120px);
+        max-height: calc(70vh - 120px);
+        padding: 10px;
+    }
+
+    .message {
+        max-width: 90%;
+        font-size: 13px;
+    }
+
+    #user-info h3,
+    #room-selector h3,
+    #users-list h3 {
+        font-size: 12px;
+    }
+
+    #nickname-input,
+    #room-select,
+    #room-password {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    #join-room-btn {
+        padding: 10px;
+        font-size: 14px;
+    }
+}
+
+/* Альбомная ориентация на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+    #sidebar {
+        max-height: 40vh;
+    }
+
+    #main {
+        height: 60vh;
+    }
+
+    #chat-messages {
+        height: calc(60vh - 100px);
+        max-height: calc(60vh - 100px);
+    }
+
+    .user-item {
+        width: 70px;
+    }
+}
+
+
+
+
+
+
+
 
 
     </style>
@@ -909,6 +1216,7 @@
     <div id="app">
         <!-- Боковая панель -->
         <div id="sidebar">
+            <button id="sidebar-toggle" class="sidebar-toggle" onclick="toggleSidebar()" style="display: none;">📋 Участники</button>
             <div id="user-info">
                 <h3>Ваш профиль</h3>
                 <input type="text" id="nickname-input" placeholder="Введите ваш ник" maxlength="20" value="Гость">
@@ -1110,8 +1418,9 @@
     <script>
         // ========== КОНФИГУРАЦИЯ ==========
         const CONFIG = {
-            // WebSocket сервер
-            wsUrl: 'wss://chat-server-138b.onrender.com',
+           // wsUrl: 'ws://localhost:3000',
+            
+           wsUrl: 'wss://chat-server-138b.onrender.com',  // WebSocket сервер
             
             // STUN сервера (несколько для надежности)
             stunServers: [
@@ -1551,6 +1860,8 @@ if (roomNumber === 0) {
         mediaStreamSource.connect(analyser);
         
         addMessage('🎤 Микрофон готов (эхоподавление активно)', 'system');
+        initAudioForBackground(); 
+
         return true;
         
     } catch (err) {
@@ -1559,6 +1870,57 @@ if (roomNumber === 0) {
 }
 
 
+
+// Улучшенная инициализация аудио для фоновой работы
+async function initAudioForBackground() {
+    try {
+        // ИСПРАВЛЕНО: используем другую переменную, не audioContext
+        const backgroundAudioContext = new (window.AudioContext || window.webkitAudioContext)({
+            latencyHint: 'playback',
+            sampleRate: 48000
+        });
+        
+        // Разрешаем аудио контексту работать в фоне
+        if (backgroundAudioContext.resume) {
+            await backgroundAudioContext.resume();
+        }
+        
+        // Создаем тихий звук для поддержания аудио сессии
+        const silentBuffer = backgroundAudioContext.createBuffer(1, 1, 22050);
+        const silentSource = backgroundAudioContext.createBufferSource();
+        silentSource.buffer = silentBuffer;
+        silentSource.connect(backgroundAudioContext.destination);
+        silentSource.start();
+        
+        // Сохраняем ссылку на фоновый контекст, если нужно будет его остановить
+        window.backgroundAudioContext = backgroundAudioContext;
+        
+        return true;
+    } catch (err) {
+        console.error('Ошибка инициализации фонового аудио:', err);
+        return false;
+    }
+}
+
+// Добавьте функцию для остановки фонового аудио при завершении звонка
+function stopBackgroundAudio() {
+    if (window.backgroundAudioContext) {
+        window.backgroundAudioContext.close();
+        window.backgroundAudioContext = null;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+// Вызывайте эту функцию вместе с initAudio()
 
 
 
@@ -1763,7 +2125,7 @@ if (roomNumber === 0) {
                 audioContext.close();
                 audioContext = null;
             }
-            
+            stopBackgroundAudio(); // Останавливаем фоновое аудио
             remoteStream = null;
             currentCaller = null;
             isMuted = false;
@@ -2563,6 +2925,237 @@ document.querySelectorAll('.modal-content').forEach(content => {
         e.stopPropagation(); // Не даем событию дойти до фона
     });
 });
+
+
+
+// Добавьте в существующий JavaScript код
+
+// Функция для сворачивания/разворачивания боковой панели на мобильных
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('collapsed');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    
+    if (sidebar.classList.contains('collapsed')) {
+        toggleBtn.innerHTML = '📋 Показать участников';
+    } else {
+        toggleBtn.innerHTML = '📋 Скрыть';
+    }
+}
+
+// Показывать/скрывать кнопку сворачивания в зависимости от размера экрана
+function checkMobileView() {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    if (window.innerWidth <= 768) {
+        toggleBtn.style.display = 'block';
+    } else {
+        toggleBtn.style.display = 'none';
+        document.getElementById('sidebar').classList.remove('collapsed');
+    }
+}
+
+// Слушаем изменение размера окна
+window.addEventListener('resize', checkMobileView);
+
+// Вызываем при загрузке
+checkMobileView();
+
+// Улучшенная прокрутка для мобильных
+function scrollToBottom() {
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Автоматическая прокрутка при добавлении новых сообщений
+const originalAddMessage = addMessage;
+addMessage = function(text, type = 'system', sender = null) {
+    originalAddMessage(text, type, sender);
+    setTimeout(scrollToBottom, 100);
+};
+
+// Добавьте обработку свайпов для закрытия боковой панели
+let touchStartY = 0;
+let touchEndY = 0;
+
+document.getElementById('sidebar').addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.getElementById('sidebar').addEventListener('touchmove', (e) => {
+    if (window.innerWidth <= 768) {
+        touchEndY = e.touches[0].clientY;
+        const diff = touchEndY - touchStartY;
+        
+        if (diff > 50) { // Свайп вниз - показать
+            document.getElementById('sidebar').classList.remove('collapsed');
+        } else if (diff < -50) { // Свайп вверх - скрыть
+            document.getElementById('sidebar').classList.add('collapsed');
+        }
+    }
+}, { passive: true });
+
+
+
+// ========== РАБОТА В ФОНОВОМ РЕЖИМЕ ==========
+
+// Предотвращаем засыпание экрана во время звонка
+let wakeLock = null;
+
+// Функция для запроса блокировки сна
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock активен');
+            
+            // Обработка потери блокировки (например, при сворачивании)
+            wakeLock.addEventListener('release', () => {
+                console.log('Wake Lock освобожден');
+            });
+        } else {
+            console.log('Wake Lock не поддерживается браузером');
+            // Альтернативный метод для старых браузеров
+            keepScreenAlive();
+        }
+    } catch (err) {
+        console.error('Ошибка Wake Lock:', err);
+        keepScreenAlive();
+    }
+}
+
+// Альтернативный метод для поддержания активности
+function keepScreenAlive() {
+    // Создаем видео элемент, который будет держать экран активным
+    const video = document.createElement('video');
+    video.style.display = 'none';
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('loop', 'true');
+    
+    // Создаем пустой медиапоток
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const stream = canvas.captureStream(1); // 1 FPS
+    
+    video.srcObject = stream;
+    video.play().catch(e => console.log('Не удалось запустить видео для поддержания активности'));
+    
+    return video;
+}
+
+// Освобождение блокировки сна
+async function releaseWakeLock() {
+    if (wakeLock) {
+        try {
+            await wakeLock.release();
+            wakeLock = null;
+            console.log('Wake Lock освобожден');
+        } catch (err) {
+            console.error('Ошибка освобождения Wake Lock:', err);
+        }
+    }
+}
+
+// Модифицируем функцию startActiveCall
+const originalStartActiveCall = startActiveCall;
+startActiveCall = function(nick) {
+    originalStartActiveCall(nick);
+    requestWakeLock(); // Запрашиваем блокировку сна при начале звонка
+    
+    // Добавляем обработчик видимости страницы
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+}
+
+// Модифицируем функцию endCall
+const originalEndCall = endCall;
+endCall = function() {
+    originalEndCall();
+    releaseWakeLock(); // Освобождаем блокировку сна при завершении звонка
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+}
+
+// Обработчик изменения видимости страницы
+function handleVisibilityChange() {
+    if (document.hidden) {
+        // Страница скрыта (в фоне)
+        console.log('Приложение в фоне');
+        
+        // Если есть активный звонок, продолжаем поддерживать соединение
+        if (activeCallModal.classList.contains('active')) {
+            // Убеждаемся что аудио поток активен
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    if (track.kind === 'audio') {
+                        track.enabled = true;
+                    }
+                });
+            }
+            
+            // Периодически отправляем пинги для поддержания WebSocket
+            if (!window.keepAliveInterval) {
+                window.keepAliveInterval = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN && activeCallModal.classList.contains('active')) {
+                        ws.send(JSON.stringify({
+                            type: 'ping',
+                            user: userId,
+                            timestamp: Date.now()
+                        }));
+                    }
+                }, 10000); // Каждые 10 секунд
+            }
+        }
+    } else {
+        // Страница видима
+        console.log('Приложение активно');
+        if (window.keepAliveInterval) {
+            clearInterval(window.keepAliveInterval);
+            window.keepAliveInterval = null;
+        }
+    }
+}
+
+// Регистрируем Service Worker для фоновых уведомлений
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').then(registration => {
+            console.log('ServiceWorker зарегистрирован:', registration.scope);
+        }).catch(err => {
+            console.log('Ошибка регистрации ServiceWorker:', err);
+        });
+    });
+}
+
+// Обработка аудио фокуса (для Android)
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => {
+        // Воспроизведение
+    });
+    
+    navigator.mediaSession.setActionHandler('pause', () => {
+        // Пауза
+    });
+    
+    navigator.mediaSession.setActionHandler('stop', () => {
+        endCall();
+    });
+}
+
+// Принудительно держим аудио контекст активным
+function keepAudioContextAlive() {
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+            console.log('AudioContext возобновлен');
+        });
+    }
+}
+
+// Проверяем состояние AudioContext каждые 5 секунд во время звонка
+setInterval(() => {
+    if (activeCallModal.classList.contains('active') && audioContext) {
+        keepAudioContextAlive();
+    }
+}, 5000);
+
+
 
 
 
