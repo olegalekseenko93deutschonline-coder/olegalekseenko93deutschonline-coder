@@ -1570,6 +1570,10 @@ let isConnected = false;
 let connectionTimeout = null;
 let lastMessageTime = Date.now();
 let connectionCheckTimer = null;
+
+// ========== ПЕРЕМЕННЫЕ ДЛЯ WAKE LOCK ==========
+let wakeLock = null;  // <--- ВСТАВЬТЕ ЭТУ СТРОКУ ЗДЕСЬ
+
         
         // WebRTC переменные
         let peerConnection = null;
@@ -1918,6 +1922,21 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
                 case 'file':
                     displayFileMessage(data, data.user === userId);
                     break;
+
+                   
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                 // WebRTC сигналы
                 case 'call-offer':
