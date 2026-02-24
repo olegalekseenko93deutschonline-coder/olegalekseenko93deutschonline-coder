@@ -1977,12 +1977,7 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
 
    
     
-    ws.onerror = (error) => {
-        console.error('WebSocket ошибка:', error);
-        if (!isReconnect) {
-            addMessage('❌ Ошибка подключения к серверу', 'system');
-        }
-    };
+    
 
 
 
