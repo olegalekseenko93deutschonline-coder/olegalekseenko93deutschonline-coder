@@ -1714,6 +1714,31 @@ function updateAttachButtonState(roomNumber) {
     }
 }
 
+
+function attemptReconnect() {
+    // Проверяем не превышен ли лимит попыток
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        addMessage('❌ Не удалось восстановить соединение. Пожалуйста, обновите страницу или подключитесь вручную', 'system');
+        addMessage('💡 Нажмите кнопку "Присоединиться" для ручного подключения', 'system');
+        return;
+    }
+    
+    reconnectAttempts++;
+    
+    const delay = RECONNECT_DELAY * reconnectAttempts;
+    addMessage(`⏳ Попытка переподключения ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} через ${delay/1000} сек...`, 'system');
+    
+    reconnectTimer = setTimeout(() => {
+        // Проверяем, не восстановилось ли соединение само
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            addMessage(`🔄 Переподключаюсь (попытка ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`, 'system');
+            connectToRoom(currentRoom, roomPassword.value, true);
+        }
+    }, delay);
+}
+
+
+
 function connectToRoom(roomNumber, password = '', isReconnect = false) {
     // Сбрасываем флаг ручного отключения при новом подключении
     if (!isReconnect) {
