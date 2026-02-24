@@ -1539,13 +1539,26 @@
             CONFIG.turnServer
         ];
 
-        // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
-        let ws = null;
-        let userId = Math.random().toString(36).substr(2, 9);
-        let userNick = localStorage.getItem('voiceChatNick') || 'Гость';
-        let currentRoom = 0;
-        let users = new Map(); // userId -> { nick, inCall }
-        let lastPongTime = Date.now();
+        
+       // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+let ws = null;
+let userId = Math.random().toString(36).substr(2, 9);
+let userNick = localStorage.getItem('voiceChatNick') || 'Гость';
+let currentRoom = 0;
+let users = new Map(); // userId -> { nick, inCall }
+let lastPongTime = Date.now();
+
+// ========== ПЕРЕМЕННЫЕ ДЛЯ УЛУЧШЕННОГО WEBSOCKET ==========
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const RECONNECT_DELAY = 3000;
+let reconnectTimer = null;
+let isManualDisconnect = false;
+let connectionCheckInterval = null;
+let isConnected = false;
+let connectionTimeout = null;
+let lastMessageTime = Date.now();
+let connectionCheckTimer = null;
         
         // WebRTC переменные
         let peerConnection = null;
@@ -1583,12 +1596,7 @@
         const bitrate = document.getElementById('bitrate');
         const packetLoss = document.getElementById('packet-loss');
 
-        // ========== ПЕРЕМЕННЫЕ ДЛЯ АВТОМАТИЧЕСКОГО ПЕРЕПОДКЛЮЧЕНИЯ ==========
-        let reconnectAttempts = 0;
-        const MAX_RECONNECT_ATTEMPTS = 10;
-        const RECONNECT_DELAY = 3000; // 3 секунды
-        let reconnectTimer = null;
-        let isManualDisconnect = false; // Флаг для ручного отключения
+    
 
         // ========== ИНИЦИАЛИЗАЦИЯ ==========
         nicknameInput.value = userNick;
@@ -1695,7 +1703,6 @@ function updateAttachButtonState(roomNumber) {
     }
 }
 
-// ========== WEBSOCKET СОЕДИНЕНИЕ С АВТОПЕРЕПОДКЛЮЧЕНИЕМ ==========
 function connectToRoom(roomNumber, password = '', isReconnect = false) {
     // Сбрасываем флаг ручного отключения при новом подключении
     if (!isReconnect) {
@@ -1712,7 +1719,8 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
     // Закрываем старое соединение если оно есть
     if (ws) {
         try {
-            ws.onclose = null; // Убираем обработчик чтобы не вызвать переподключение
+            ws.onclose = null;
+            ws.onerror = null;
             ws.close();
         } catch (e) {}
     }
@@ -1731,7 +1739,20 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
     const wsUrl = `${CONFIG.wsUrl}?room=${roomNumber}&password=${encodeURIComponent(password)}&userId=${userId}`;
     ws = new WebSocket(wsUrl);
     
+    // Устанавливаем таймаут соединения
+    connectionTimeout = setTimeout(() => {
+        if (ws && ws.readyState !== WebSocket.OPEN) {
+            ws.close();
+            addMessage('⏰ Таймаут подключения', 'system');
+            if (!isManualDisconnect) {
+                attemptReconnect();
+            }
+        }
+    }, 10000);
+    
     ws.onopen = () => {
+        clearTimeout(connectionTimeout);
+        isConnected = true;
         updateConnectionStatus(true);
         reconnectAttempts = 0; // Сбрасываем счетчик попыток
         
@@ -1745,47 +1766,206 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
         ws.send(JSON.stringify({
             type: 'user_joined',
             user: userId,
-            nick: userNick
+            nick: userNick,
+            room: roomNumber
         }));
         
         // Включаем/выключаем ввод сообщений и прикрепление файлов
+        const attachFileBtn = document.getElementById('attach-file-btn');
+        const fileInput = document.getElementById('file-input');
+        
         if (roomNumber === 0) {
             messageInput.disabled = true;
             sendBtn.disabled = true;
             messageInput.placeholder = '🚫 В прихожей нельзя писать';
             
-            attachFileBtn.disabled = true;
-            attachFileBtn.style.background = '#cbd5e0';
-            attachFileBtn.style.cursor = 'not-allowed';
-            attachFileBtn.style.opacity = '0.5';
-            attachFileBtn.title = '🚫 В прихожей нельзя прикреплять файлы';
+            if (attachFileBtn) {
+                attachFileBtn.disabled = true;
+                attachFileBtn.style.background = '#cbd5e0';
+                attachFileBtn.style.opacity = '0.5';
+                attachFileBtn.title = '🚫 В прихожей нельзя прикреплять файлы';
+            }
             
-            fileInput.disabled = true;
+            if (fileInput) fileInput.disabled = true;
         } else {
             messageInput.disabled = false;
             sendBtn.disabled = false;
             messageInput.placeholder = 'Введите сообщение...';
             
-            attachFileBtn.disabled = false;
-            attachFileBtn.style.background = '#6c757d';
-            attachFileBtn.style.cursor = 'pointer';
-            attachFileBtn.style.opacity = '1';
-            attachFileBtn.title = 'Прикрепить файл';
+            if (attachFileBtn) {
+                attachFileBtn.disabled = false;
+                attachFileBtn.style.background = '#6c757d';
+                attachFileBtn.style.opacity = '1';
+                attachFileBtn.title = 'Прикрепить файл';
+            }
             
-            fileInput.disabled = false;
+            if (fileInput) fileInput.disabled = false;
         }
-
+        
         // Запрашиваем список активных пользователей
-    setTimeout(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'get_active_users',
-                user: userId
-            }));
-        }
-    }, 1000);
+        setTimeout(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'get_active_users',
+                    user: userId
+                }));
+            }
+        }, 1000);
+        
+        // Запускаем проверку соединения
+        startConnectionCheck();
+    };
+    
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            
+            // Обновляем время последнего сообщения
+            lastMessageTime = Date.now();
+            
+            switch (data.type) {
+                case 'system':
+                    addMessage(data.text, 'system');
+                    break;
+                
+                case 'pong':
+                    console.log('Получен pong от сервера');
+                    break;
+                    
+                case 'user_joined':
+                    // Игнорируем собственное подключение
+                    if (data.user === userId) {
+                        return;
+                    }
+                    
+                    // Добавляем пользователя только если его еще нет в списке
+                    if (!users.has(data.user)) {
+                        users.set(data.user, { nick: data.nick, inCall: false, lastSeen: Date.now() });
+                        updateUsersList();
+                        addMessage(`👤 ${data.nick} присоединился`, 'system');
+                    }
+                    break;
+                    
+                case 'user_left':
+                    // Игнорируем, если это наш собственный userId
+                    if (data.user === userId) {
+                        console.log('Игнорируем собственное отключение');
+                        return;
+                    }
+                    
+                    // Добавляем задержку перед удалением, чтобы избежать ложных отключений
+                    setTimeout(() => {
+                        // Проверяем, не было ли переподключения пользователя
+                        const user = users.get(data.user);
+                        if (user && user.nick === data.nick) {
+                            users.delete(data.user);
+                            updateUsersList();
+                            addMessage(`👤 ${data.nick} покинул комнату`, 'system');
+                            
+                            // Если это был собеседник в звонке
+                            if (currentCaller && data.user === currentCaller.userId) {
+                                endCall();
+                                addMessage('📞 Собеседник прервал звонок', 'system');
+                            }
+                        }
+                    }, 2000); // Задержка 2 секунды
+                    break;
+                    
+                case 'active_users':
+                    syncUsersList(data.users);
+                    break;
+                    
+                case 'message':
+                    addMessage(data.text, data.user === userId ? 'me' : 'other', data.nick);
+                    break;
 
+                case 'file':
+                    displayFileMessage(data, data.user === userId);
+                    break;
+
+                // WebRTC сигналы
+                case 'call-offer':
+                    if (data.targetUserId === userId) {
+                        showIncomingCall(data.callerNick, data.offer, data.callerId);
+                    }
+                    break;
+                    
+                case 'call-answer':
+                    if (data.targetUserId === userId && peerConnection) {
+                        peerConnection.setRemoteDescription(data.answer);
+                        startActiveCall(currentCaller.nick);
+                        startQualityMonitoring();
+                    }
+                    break;
+                    
+                case 'ice-candidate':
+                    if (data.targetUserId === userId && peerConnection) {
+                        peerConnection.addIceCandidate(data.candidate);
+                    }
+                    break;
+                    
+                case 'call-declined':
+                    if (data.targetUserId === userId) {
+                        addMessage('📞 Звонок отклонен', 'system');
+                        cleanupCall();
+                    }
+                    break;
+                    
+                case 'call-ended':
+                    if (data.targetUserId === userId) {
+                        addMessage('📞 Звонок завершен', 'system');
+                        hideActiveCallModal();
+                        cleanupCall();
+                    }
+                    break;
+                    
+                case 'user_in_call':
+                    const user = users.get(data.user);
+                    if (user) {
+                        user.inCall = data.inCall;
+                        updateUsersList();
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error('Ошибка обработки сообщения:', error);
+        }
+    };
+    
+    ws.onerror = (error) => {
+        console.error('WebSocket ошибка:', error);
+        if (!isReconnect) {
+            addMessage('❌ Ошибка подключения к серверу', 'system');
+        }
+    };
+    
+    ws.onclose = (event) => {
+        clearTimeout(connectionTimeout);
+        isConnected = false;
+        stopConnectionCheck();
+        updateConnectionStatus(false);
+        
+        console.log('WebSocket закрыт, код:', event.code, 'причина:', event.reason);
+        
+        // Не переподключаемся при ручном отключении или если страница закрывается
+        if (isManualDisconnect) {
+            addMessage('🔌 Соединение закрыто', 'system');
+            return;
+        }
+        
+        // Не переподключаемся при нормальном закрытии (1000)
+        if (event.code === 1000) {
+            addMessage('🔌 Соединение закрыто', 'system');
+            return;
+        }
+        
+        // Пытаемся переподключиться
+        addMessage('⚠️ Потеря соединения с сервером', 'system');
+        attemptReconnect();
+    };
 }
+  
+    
 
 
 
@@ -1914,38 +2094,44 @@ ws.onmessage = (event) => {
     };
 }
 
-// ========== ФУНКЦИЯ ПЕРЕПОДКЛЮЧЕНИЯ ==========
-function attemptReconnect() {
-    // Проверяем не превышен ли лимит попыток
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        addMessage('❌ Не удалось восстановить соединение. Пожалуйста, обновите страницу или подключитесь вручную', 'system');
-        addMessage('💡 Нажмите кнопку "Присоединиться" для ручного подключения', 'system');
-        return;
-    }
-    
-    reconnectAttempts++;
-    
-    const delay = RECONNECT_DELAY * reconnectAttempts; // Увеличиваем задержку с каждой попыткой
-    addMessage(`⏳ Попытка переподключения ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} через ${delay/1000} сек...`, 'system');
-    
-    reconnectTimer = setTimeout(() => {
-        addMessage(`🔄 Переподключаюсь (попытка ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`, 'system');
-        connectToRoom(currentRoom, roomPassword.value, true);
-    }, delay);
-}
 
-// Функция для синхронизации списка пользователей
+
+
+// ========== УЛУЧШЕННАЯ СИНХРОНИЗАЦИЯ ПОЛЬЗОВАТЕЛЕЙ ==========
 function syncUsersList(activeUsers) {
-    // activeUsers - массив ID активных пользователей от сервера
-    if (!activeUsers) return;
+    if (!activeUsers || !Array.isArray(activeUsers)) return;
     
-    // Удаляем пользователей, которых нет в активном списке
+    const now = Date.now();
+    const usersToRemove = [];
+    
+    // Проверяем каждого пользователя
     for (const [id, user] of users) {
-        if (!activeUsers.includes(id) && id !== userId) {
-            users.delete(id);
-            addMessage(`👤 ${user.nick} покинул комнату (синхронизация)`, 'system');
+        // Пропускаем себя
+        if (id === userId) continue;
+        
+        // Если пользователя нет в активном списке
+        if (!activeUsers.includes(id)) {
+            // Добавляем время отсутствия
+            if (!user.markedForRemoval) {
+                user.markedForRemoval = now;
+            } else if (now - user.markedForRemoval > 5000) {
+                // Если пользователь отсутствует больше 5 секунд, удаляем
+                usersToRemove.push({ id, user });
+            }
+        } else {
+            // Пользователь есть в списке, сбрасываем метку
+            if (user.markedForRemoval) {
+                delete user.markedForRemoval;
+            }
         }
     }
+    
+    // Удаляем пользователей, которые отсутствуют достаточно долго
+    usersToRemove.forEach(({ id, user }) => {
+        users.delete(id);
+        addMessage(`👤 ${user.nick} покинул комнату (синхронизация)`, 'system');
+    });
+    
     updateUsersList();
 }
 
@@ -3316,26 +3502,62 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// Периодическая проверка соединения (ping-pong)
-setInterval(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        // Отправляем ping
-        try {
-            ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
-        } catch (e) {
-            console.log('Ошибка отправки ping');
+
+
+
+
+
+
+
+// ========== ПРОВЕРКА СОЕДИНЕНИЯ ==========
+function startConnectionCheck() {
+    stopConnectionCheck();
+    
+    // Проверяем соединение каждые 30 секунд
+    connectionCheckTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            // Отправляем ping
+            try {
+                ws.send(JSON.stringify({ 
+                    type: 'ping', 
+                    user: userId,
+                    timestamp: Date.now() 
+                }));
+            } catch (e) {
+                console.log('Ошибка отправки ping');
+            }
+            
+            // Проверяем, не зависло ли соединение
+            if (Date.now() - lastMessageTime > 60000) { // 60 секунд без сообщений
+                console.log('Нет сообщений больше минуты, переподключаемся');
+                if (!isManualDisconnect) {
+                    attemptReconnect();
+                }
+            }
         }
+    }, 30000);
+}
+
+function stopConnectionCheck() {
+    if (connectionCheckTimer) {
+        clearInterval(connectionCheckTimer);
+        connectionCheckTimer = null;
+    }
+}
+
+// ========== ПЕРИОДИЧЕСКАЯ СИНХРОНИЗАЦИЯ ==========
+setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN && isConnected) {
+        ws.send(JSON.stringify({
+            type: 'get_active_users',
+            user: userId
+        }));
     }
 }, 30000); // Каждые 30 секунд
 
 
-
-
-
-
-
-
-
+    
+   
 
 
 
