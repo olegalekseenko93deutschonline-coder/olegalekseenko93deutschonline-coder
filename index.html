@@ -599,13 +599,38 @@
         }
 
       
-
-/* Начинаются стили для кнопки прикрепления */
 #message-input-area form {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    width: 100%;
+    flex-wrap: nowrap;
 }
+
+#message-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    padding: 12px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    font-size: 14px;
+    transition: all 0.3s;
+    box-sizing: border-box;
+}
+
+#send-btn, .attach-btn {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
 
 .attach-btn {
     width: 50px;
@@ -1489,9 +1514,9 @@
     <script>
         // ========== КОНФИГУРАЦИЯ ==========
         const CONFIG = {
-           // wsUrl: 'ws://localhost:3000',
+            wsUrl: 'ws://localhost:3000',
             
-           wsUrl: 'wss://chat-server-138b.onrender.com',  // WebSocket сервер
+          // wsUrl: 'wss://chat-server-138b.onrender.com',  // WebSocket сервер
             
             // STUN сервера (несколько для надежности)
             stunServers: [
