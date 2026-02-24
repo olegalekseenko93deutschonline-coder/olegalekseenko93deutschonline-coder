@@ -598,23 +598,7 @@
             transition: height 0.1s;
         }
 
-        /* Адаптивность */
-        @media (max-width: 768px) {
-            #app {
-                flex-direction: column;
-                height: 100vh;
-                border-radius: 0;
-            }
-
-            #sidebar {
-                width: 100%;
-                height: 300px;
-            }
-
-            body {
-                padding: 0;
-            }
-        }
+      
 
 /* Начинаются стили для кнопки прикрепления */
 #message-input-area form {
@@ -905,8 +889,7 @@
     pointer-events: none;
 }
 
-
-/* Адаптивность для мобильных устройств */
+   /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
     #app {
         flex-direction: column;
@@ -919,6 +902,8 @@
         right: 0;
         bottom: 0;
         max-width: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     body {
@@ -926,95 +911,97 @@
         overflow: hidden;
     }
 
-    /* Боковая панель в мобильной версии */
+    /* Боковая панель - ВСЕГДА ПЕРВАЯ */
     #sidebar {
         width: 100%;
         height: auto;
-        max-height: 35vh;
-        overflow-y: auto;
+        max-height: none;
         border-right: none;
         border-bottom: 1px solid #e9ecef;
         background: #f8f9fa;
-        transition: max-height 0.3s ease;
+        flex-shrink: 0;
+        overflow: visible;
+        transition: none;
+        order: 1;
+        position: relative;
+        z-index: 10;
     }
 
-    /* Сворачиваемая боковая панель */
-    #sidebar.collapsed {
-        max-height: 60px;
-        overflow: hidden;
-    }
-
-    /* Кнопка для сворачивания/разворачивания боковой панели */
-    #sidebar-toggle {
-        display: block;
-        position: absolute;
-        top: 10px;
-        right: 15px;
-        z-index: 100;
-        background: #667eea;
-        color: white;
-        border: none;
-        border-radius: 20px;
-        padding: 8px 15px;
-        font-size: 14px;
-        cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-
-    /* Основная область */
+    /* Основная область - ВСЕГДА ВТОРАЯ */
     #main {
-        height: 65vh;
+        height: auto;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        flex-shrink: 0;
+        overflow: visible;
+        order: 2;
+        position: relative;
+        z-index: 5;
+        margin-top: 0; /* Убираем возможные отступы */
     }
 
-    /* Заголовок чата */
+    /* Заголовок чата - УМЕНЬШАЕМ ВЫСОТУ, НО ШРИФТ ОСТАВЛЯЕМ */
     #chat-header {
-        padding: 12px 15px;
+        padding: 8px 12px; /* Уменьшаем вертикальные отступы */
         flex-shrink: 0;
+        background: #e9ecef;
+        border-bottom: 1px solid #dee2e6;
+        min-height: 45px; /* Фиксируем минимальную высоту */
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
     #current-room-info {
-        font-size: 16px;
+        font-size: 18px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
+        font-weight: 600;
+        color: #2d3748;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
     }
 
-    /* Контейнер сообщений с правильной прокруткой */
+    #connection-status {
+        margin-top: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .status-badge {
+        padding: 4px 8px;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+    
+    /* Контейнер сообщений */
     #chat-messages {
-        flex: 1 1 auto;
+        flex: none;
+        min-height: 150px;
+        max-height: 25vh;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
-        padding: 15px;
-        height: calc(65vh - 120px); /* Фиксированная высота с учетом других элементов */
-        max-height: calc(65vh - 120px);
+        padding: 10px;
         scroll-behavior: smooth;
-    }
-
-    /* Стилизация скроллбара для мобильных */
-    #chat-messages::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    #chat-messages::-webkit-scrollbar-thumb {
-        background: #667eea;
-        border-radius: 4px;
+        height: auto;
     }
 
     /* Сообщения */
     .message {
         max-width: 85%;
-        padding: 10px 14px;
-        font-size: 14px;
-        margin-bottom: 8px;
-        word-break: break-word;
+        padding: 8px 12px; /* Возвращаем прежние отступы */
+        font-size: 14px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
+        margin-bottom: 6px;
+        line-height: 1.4;
     }
 
-    /* Область ввода сообщения */
+    /* Область ввода */
     #message-input-area {
-        padding: 12px 15px;
+        padding: 12px 15px; /* Возвращаем прежние отступы */
         flex-shrink: 0;
         background: white;
         border-top: 1px solid #e9ecef;
+        margin-top: auto;
     }
 
     #message-form {
@@ -1024,17 +1011,44 @@
     }
 
     #message-input {
-        padding: 12px 15px;
-        font-size: 16px; /* Предотвращает зум на iOS */
+        padding: 12px 15px; /* Возвращаем прежние отступы */
+        font-size: 16px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
         border-radius: 25px;
-        min-height: 44px; /* Минимальный размер для тач-целей */
+        min-height: 44px;
     }
 
     #send-btn, .attach-btn {
         width: 44px;
         height: 44px;
         min-width: 44px;
-        font-size: 20px;
+        font-size: 20px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
+    }
+
+    /* ВАЖНО! ПОЛЯ ВСЕГДА ВИДНЫ - увеличиваем отступы */
+    #user-info, #room-selector, #users-list {
+        padding: 15px 15px 12px 15px;
+        position: relative;
+        z-index: 20;
+        background: #f8f9fa; /* Фон для надежности */
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    #user-info h3, #room-selector h3, #users-list h3 {
+        font-size: 14px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
+        margin-bottom: 10px;
+    }
+
+    #nickname-input, #room-select, #room-password {
+        padding: 12px; /* Возвращаем прежние отступы */
+        font-size: 14px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
+        margin-bottom: 10px;
+        border-width: 2px; /* Возвращаем прежнюю толщину */
+    }
+
+    #join-room-btn {
+        padding: 12px; /* Возвращаем прежние отступы */
+        font-size: 16px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
+        margin-bottom: 8px;
     }
 
     /* Список пользователей */
@@ -1050,39 +1064,45 @@
 
     .user-item {
         flex: 0 0 auto;
-        width: 80px;
+        width: 75px; /* Немного увеличиваем */
         flex-direction: column;
         text-align: center;
-        padding: 10px 5px;
+        padding: 8px 4px;
         scroll-snap-align: start;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
     .user-avatar {
+        width: 36px;
+        height: 36px;
         margin-right: 0;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
+        font-size: 16px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
     }
 
     .user-name {
-        font-size: 12px;
+        font-size: 12px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 70px;
+        max-width: 67px;
     }
 
     .user-status {
-        font-size: 10px;
+        font-size: 10px; /* ОСТАВЛЯЕМ ПРЕЖНИЙ РАЗМЕР */
         justify-content: center;
     }
 
     .call-btn {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
-        margin-top: 5px;
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+        margin-top: 4px;
     }
 
-    /* Модальные окна на мобильных */
+    /* Модальные окна */
     .modal-content {
         width: 95%;
         max-height: 90vh;
@@ -1090,49 +1110,52 @@
         margin: 10px;
     }
 
-    .call-timer {
-        font-size: 36px;
-    }
-
-    .call-controls {
-        flex-wrap: wrap;
-    }
-
-    .call-btn-large {
-        width: 55px;
-        height: 55px;
-        font-size: 24px;
-    }
-
-    /* Файловые сообщения на мобильных */
+    /* Файловые сообщения */
     .file-preview {
         flex-direction: column;
         align-items: flex-start;
+        gap: 8px;
+        padding: 8px;
     }
 
     .file-thumbnail {
         width: 100%;
         height: auto;
-        max-height: 150px;
+        max-height: 120px;
         object-fit: cover;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
+    }
+
+    .file-icon {
+        font-size: 28px;
+        min-width: 40px;
+    }
+
+    .file-name {
+        font-size: 13px;
+    }
+
+    .file-size, .file-type {
+        font-size: 11px;
     }
 
     .file-actions {
         flex-direction: row;
         margin-left: 0;
-        margin-top: 10px;
+        margin-top: 5px;
         width: 100%;
         justify-content: flex-end;
+        gap: 8px;
     }
 
     .file-download-btn,
     .file-preview-btn {
-        width: 44px;
-        height: 44px;
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
     }
 
-    /* Индикатор загрузки на мобильных */
+    /* Индикатор загрузки */
     .upload-progress-overlay {
         bottom: 10px;
         right: 10px;
@@ -1142,45 +1165,12 @@
     }
 }
 
-/* Для очень маленьких экранов */
-@media (max-width: 480px) {
-    #sidebar {
-        max-height: 30vh;
-    }
+ 
 
-    #main {
-        height: 70vh;
-    }
+   
 
-    #chat-messages {
-        height: calc(70vh - 120px);
-        max-height: calc(70vh - 120px);
-        padding: 10px;
-    }
 
-    .message {
-        max-width: 90%;
-        font-size: 13px;
-    }
 
-    #user-info h3,
-    #room-selector h3,
-    #users-list h3 {
-        font-size: 12px;
-    }
-
-    #nickname-input,
-    #room-select,
-    #room-password {
-        padding: 10px;
-        font-size: 13px;
-    }
-
-    #join-room-btn {
-        padding: 10px;
-        font-size: 14px;
-    }
-}
 
 /* Альбомная ориентация на мобильных */
 @media (max-width: 768px) and (orientation: landscape) {
@@ -1204,9 +1194,90 @@
 
 
 
+/* Дополнительная защита для очень маленьких экранов */
+@media (max-width: 360px) {
+    #chat-header {
+        padding: 5px 10px;
+    }
+    
+    #current-room-info {
+        font-size: 13px;
+    }
+    
+    #user-info, #room-selector {
+        padding: 10px;
+    }
+    
+    #users-container {
+        gap: 5px;
+    }
+    
+    .user-item {
+        width: 60px;
+    }
+}
 
+/* АБСОЛЮТНАЯ ЗАЩИТА - НИКАКИХ НАЛОЖЕНИЙ */
+@media (max-width: 768px) {
+    /* Принудительно разделяем блоки */
+    #sidebar {
+        margin-bottom: 5px;
+        border-bottom: 2px solid #667eea; /* Визуальный разделитель */
+    }
+    
+    #chat-header {
+        margin-top: 0;
+        border-top: 2px solid #667eea; /* Визуальный разделитель */
+    }
+    
+    /* Гарантируем, что поля всегда имеют достаточную высоту */
+    #user-info, #room-selector {
+        padding-top: 15px !important;
+        padding-bottom: 15px !important;
+    }
+    
+    /* Увеличиваем нижний отступ для последнего поля */
+    #users-list {
+        padding-bottom: 15px !important;
+        border-bottom: 2px solid #dee2e6;
+    }
+}
 
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    #chat-header {
+        min-height: 40px;
+        padding: 5px 10px;
+    }
+    
+    #user-info, #room-selector, #users-list {
+        padding: 12px 12px 10px 12px !important;
+    }
+    
+    #users-container {
+        gap: 8px;
+    }
+    
+    .user-item {
+        width: 70px;
+    }
+}
 
+/* Экстремальная защита */
+@media (max-width: 360px) {
+    #chat-header {
+        min-height: 38px;
+        padding: 3px 8px;
+    }
+    
+    #user-info, #room-selector, #users-list {
+        padding: 10px 10px 8px 10px !important;
+    }
+    
+    .user-item {
+        width: 65px;
+    }
+}
 
 
 
@@ -1216,7 +1287,7 @@
     <div id="app">
         <!-- Боковая панель -->
         <div id="sidebar">
-            <button id="sidebar-toggle" class="sidebar-toggle" onclick="toggleSidebar()" style="display: none;">📋 Участники</button>
+           
             <div id="user-info">
                 <h3>Ваш профиль</h3>
                 <input type="text" id="nickname-input" placeholder="Введите ваш ник" maxlength="20" value="Гость">
@@ -1418,7 +1489,7 @@
     <script>
         // ========== КОНФИГУРАЦИЯ ==========
         const CONFIG = {
-           // wsUrl: 'ws://localhost:3000',
+            //wsUrl: 'ws://localhost:3000',
             
            wsUrl: 'wss://chat-server-138b.onrender.com',  // WebSocket сервер
             
@@ -3067,37 +3138,13 @@ document.querySelectorAll('.modal-content').forEach(content => {
 
 
 
-// Добавьте в существующий JavaScript код
 
-// Функция для сворачивания/разворачивания боковой панели на мобильных
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-    const toggleBtn = document.getElementById('sidebar-toggle');
-    
-    if (sidebar.classList.contains('collapsed')) {
-        toggleBtn.innerHTML = '📋 Показать участников';
-    } else {
-        toggleBtn.innerHTML = '📋 Скрыть';
-    }
-}
 
-// Показывать/скрывать кнопку сворачивания в зависимости от размера экрана
-function checkMobileView() {
-    const toggleBtn = document.getElementById('sidebar-toggle');
-    if (window.innerWidth <= 768) {
-        toggleBtn.style.display = 'block';
-    } else {
-        toggleBtn.style.display = 'none';
-        document.getElementById('sidebar').classList.remove('collapsed');
-    }
-}
 
-// Слушаем изменение размера окна
-window.addEventListener('resize', checkMobileView);
 
-// Вызываем при загрузке
-checkMobileView();
+
+
+
 
 // Улучшенная прокрутка для мобильных
 function scrollToBottom() {
@@ -3112,26 +3159,10 @@ addMessage = function(text, type = 'system', sender = null) {
     setTimeout(scrollToBottom, 100);
 };
 
-// Добавьте обработку свайпов для закрытия боковой панели
-let touchStartY = 0;
-let touchEndY = 0;
 
-document.getElementById('sidebar').addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-}, { passive: true });
 
-document.getElementById('sidebar').addEventListener('touchmove', (e) => {
-    if (window.innerWidth <= 768) {
-        touchEndY = e.touches[0].clientY;
-        const diff = touchEndY - touchStartY;
-        
-        if (diff > 50) { // Свайп вниз - показать
-            document.getElementById('sidebar').classList.remove('collapsed');
-        } else if (diff < -50) { // Свайп вверх - скрыть
-            document.getElementById('sidebar').classList.add('collapsed');
-        }
-    }
-}, { passive: true });
+
+
 
 
 
