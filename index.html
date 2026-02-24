@@ -1972,116 +1972,7 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
 
     
 
-ws.onmessage = (event) => {
-    try {
-        const data = JSON.parse(event.data);
-        
-        switch (data.type) {
-            case 'system':
-                addMessage(data.text, 'system');
-                break;
-                
-            case 'user_joined':
-                // Игнорируем собственное подключение
-                if (data.user === userId) {
-                    return;
-                }
-                
-                // Добавляем пользователя только если его еще нет в списке
-                if (!users.has(data.user)) {
-                    users.set(data.user, { nick: data.nick, inCall: false });
-                    updateUsersList();
-                    addMessage(`👤 ${data.nick} присоединился`, 'system');
-                }
-                break;
-                
-            case 'user_left':
-                // Игнорируем, если это наш собственный userId
-                if (data.user === userId) {
-                    console.log('Игнорируем собственное отключение');
-                    return;
-                }
-                
-                // Проверяем, существует ли пользователь в списке
-                if (users.has(data.user)) {
-                    // Удаляем пользователя из списка
-                    users.delete(data.user);
-                    updateUsersList();
-                    addMessage(`👤 ${data.nick} покинул комнату`, 'system');
-                    
-                    // Если это был собеседник в звонке
-                    if (currentCaller && data.user === currentCaller.userId) {
-                        endCall();
-                        addMessage('📞 Собеседник прервал звонок', 'system');
-                    }
-                }
-                break;
-                
-            case 'active_users':
-                // data.users - массив ID активных пользователей
-                syncUsersList(data.users);
-                break;
-                
-            case 'message':
-                addMessage(data.text, data.user === userId ? 'me' : 'other', data.nick);
-                break;
 
-            case 'file':
-                displayFileMessage(data, data.user === userId);
-                break;
-
-            // WebRTC сигналы
-            case 'call-offer':
-                if (data.targetUserId === userId) {
-                    showIncomingCall(data.callerNick, data.offer, data.callerId);
-                }
-                break;
-                
-            case 'call-answer':
-                if (data.targetUserId === userId && peerConnection) {
-                    peerConnection.setRemoteDescription(data.answer);
-                    startActiveCall(currentCaller.nick);
-                    startQualityMonitoring();
-                }
-                break;
-                
-            case 'ice-candidate':
-                if (data.targetUserId === userId && peerConnection) {
-                    peerConnection.addIceCandidate(data.candidate);
-                }
-                break;
-                
-            case 'call-declined':
-                if (data.targetUserId === userId) {
-                    addMessage('📞 Звонок отклонен', 'system');
-                    cleanupCall();
-                }
-                break;
-                
-            case 'call-ended':
-                if (data.targetUserId === userId) {
-                    addMessage('📞 Звонок завершен', 'system');
-                    hideActiveCallModal();
-                    cleanupCall();
-                }
-                break;
-                
-            case 'user_in_call':
-                const user = users.get(data.user);
-                if (user) {
-                    user.inCall = data.inCall;
-                    updateUsersList();
-                }
-                break;
-                
-            case 'pong':
-                console.log('Получен pong от сервера');
-                break;
-        }
-    } catch (error) {
-        console.error('Ошибка обработки сообщения:', error);
-    }
-};
 
 
    
@@ -2092,7 +1983,6 @@ ws.onmessage = (event) => {
             addMessage('❌ Ошибка подключения к серверу', 'system');
         }
     };
-}
 
 
 
