@@ -1986,37 +1986,27 @@ function connectToRoom(roomNumber, password = '', isReconnect = false) {
 function syncUsersList(activeUsers) {
     if (!activeUsers || !Array.isArray(activeUsers)) return;
     
-    const now = Date.now();
-    const usersToRemove = [];
-    
-    // Проверяем каждого пользователя
+    // Просто обновляем статус, НО НЕ УДАЛЯЕМ пользователей
     for (const [id, user] of users) {
-        // Пропускаем себя
         if (id === userId) continue;
         
-        // Если пользователя нет в активном списке
         if (!activeUsers.includes(id)) {
-            // Добавляем время отсутствия
-            if (!user.markedForRemoval) {
-                user.markedForRemoval = now;
-            } else if (now - user.markedForRemoval > 5000) {
-                // Если пользователь отсутствует больше 5 секунд, удаляем
-                usersToRemove.push({ id, user });
+            // Пользователь не в активном списке, но НЕ УДАЛЯЕМ
+            // Просто обновляем время последнего появления
+            if (!user.lastSeen) {
+                user.lastSeen = Date.now();
             }
         } else {
-            // Пользователь есть в списке, сбрасываем метку
+            // Пользователь есть в списке, обновляем время
+            user.lastSeen = Date.now();
+            // Если была метка markedForRemoval - убираем её
             if (user.markedForRemoval) {
                 delete user.markedForRemoval;
             }
         }
     }
     
-    // Удаляем пользователей, которые отсутствуют достаточно долго
-    usersToRemove.forEach(({ id, user }) => {
-        users.delete(id);
-        addMessage(`👤 ${user.nick} покинул комнату (синхронизация)`, 'system');
-    });
-    
+    // НИЧЕГО НЕ УДАЛЯЕМ - только механизм user_left с задержкой
     updateUsersList();
 }
 
