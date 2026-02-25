@@ -1190,7 +1190,21 @@
     }
 }
 
- 
+ /* Простой фикс для всех мобильных */
+@media (max-width: 768px) {
+    #message-input-area {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        z-index: 100;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Увеличиваем отступ снизу для безопасной зоны */
+    #app {
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+}
 
    
 
