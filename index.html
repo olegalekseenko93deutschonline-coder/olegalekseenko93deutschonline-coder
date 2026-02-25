@@ -1188,23 +1188,68 @@
         max-width: none;
         width: auto;
     }
+
+ /* Фикс для виртуальной клавиатуры */
+    #app {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 100vh;
+        height: -webkit-fill-available; /* Для Safari */
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Важно для Firefox */
+        height: 100%;
+    }
+    
+    #chat-messages {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        max-height: none; /* Убираем ограничение */
+    }
+    
+    #message-input-area {
+        flex-shrink: 0;
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)); /* Учитываем безопасную зону */
+        background: white;
+        border-top: 1px solid #e9ecef;
+        transition: transform 0.1s ease; /* Плавное появление */
+    }
+    
+    /* Адаптация для телефонов с вырезом/панелью навигации */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+        #message-input-area {
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+    }
 }
 
- /* Простой фикс для всех мобильных */
-@media (max-width: 768px) {
+
+
+ /* Простой фикс для всех мобильных (нижняя панель)
+    @media (max-width: 768px) {
     #message-input-area {
-        position: sticky;
+       position: sticky;
         bottom: 0;
         background: white;
         z-index: 100;
         box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     }
     
-    /* Увеличиваем отступ снизу для безопасной зоны */
+    
     #app {
         padding-bottom: env(safe-area-inset-bottom, 0);
     }
-}
+} */
 
    
 
@@ -3243,6 +3288,92 @@ if ('mediaSession' in navigator) {
         endCall();
     });
 }
+
+
+// ========== ОБРАБОТКА ВИРТУАЛЬНОЙ КЛАВИАТУРЫ ==========
+
+let originalViewportHeight = window.innerHeight;
+let isKeyboardVisible = false;
+
+function handleResize() {
+    const currentHeight = window.innerHeight;
+    
+    // Если высота уменьшилась более чем на 150px - скорее всего открылась клавиатура
+    if (originalViewportHeight - currentHeight > 150) {
+        // Клавиатура открылась
+        if (!isKeyboardVisible) {
+            isKeyboardVisible = true;
+            document.body.classList.add('keyboard-visible');
+            
+            // Прокручиваем к полю ввода
+            setTimeout(() => {
+                document.getElementById('message-input')?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 300);
+        }
+    } else if (currentHeight > originalViewportHeight - 100) {
+        // Клавиатура закрылась
+        if (isKeyboardVisible) {
+            isKeyboardVisible = false;
+            document.body.classList.remove('keyboard-visible');
+        }
+        originalViewportHeight = currentHeight;
+    }
+}
+
+// Слушаем изменение размера окна
+window.addEventListener('resize', handleResize);
+
+// Для iOS дополнительно слушаем фокус на input
+const messageInput_field = document.getElementById('message-input');
+
+messageInput_field.addEventListener('focus', () => {
+    // Даем время клавиатуре появиться
+    setTimeout(() => {
+        messageInput_field.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    }, 300);
+});
+
+messageInput_field.addEventListener('blur', () => {
+    // Возвращаем все как было
+    document.body.classList.remove('keyboard-visible');
+});
+
+// Добавляем CSS класс для состояния с клавиатурой
+const style = document.createElement('style');
+style.textContent = `
+    body.keyboard-visible #app {
+        /* Можно добавить дополнительные стили при открытой клавиатуре */
+    }
+    
+    body.keyboard-visible #chat-messages {
+        max-height: 30vh; /* Уменьшаем историю когда клавиатура открыта */
+    }
+`;
+document.head.appendChild(style);
+
+// Фикс для Android Chrome
+if (/Android/.test(navigator.userAgent)) {
+    window.addEventListener('visualViewport', (e) => {
+        if (window.visualViewport.height < window.innerHeight - 100) {
+            // Клавиатура открыта
+            document.getElementById('message-input-area').style.transform = 
+                `translateY(-${window.innerHeight - window.visualViewport.height}px)`;
+        } else {
+            // Клавиатура закрыта
+            document.getElementById('message-input-area').style.transform = '';
+        }
+    });
+}
+
+
+
+
 
 
 
