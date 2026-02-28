@@ -1364,6 +1364,134 @@
 }
 
 
+/* Индикатор активного звонка при отправке сообщений */
+.message.sent-during-call {
+    border-left: 3px solid #667eea;
+}
+
+/* Подсказка для пользователя */
+.call-active-hint {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 1500;
+    animation: fadeInOut 3s ease;
+    pointer-events: none;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+
+
+/* Индикатор ожидания для исходящего звонка */
+.calling-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+}
+
+.calling-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.calling-dots span {
+    width: 12px;
+    height: 12px;
+    background: #667eea;
+    border-radius: 50%;
+    animation: callingPulse 1.4s infinite ease-in-out both;
+}
+
+.calling-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.calling-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes callingPulse {
+    0%, 80%, 100% { 
+        transform: scale(0.6);
+        opacity: 0.6;
+    }
+    40% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Кнопка отмены вызова */
+.call-btn-large.end {
+    background: #f44336;
+    color: white;
+    font-size: 16px;
+    width: auto;
+    padding: 0 25px;
+    border-radius: 35px;
+}
+
+.call-btn-large.end:hover {
+    background: #e53935;
+    transform: scale(1.05);
+}
+
+/* Добавьте в конец CSS-стилей */
+#room-select:disabled,
+#room-password:disabled,
+#join-room-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    background: #e9ecef !important;
+}
+
+#join-room-btn:disabled {
+    background: #cbd5e0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#join-room-btn:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Подсказка при наведении на заблокированные элементы */
+#room-select:disabled:hover,
+#room-password:disabled:hover,
+#join-room-btn:disabled:hover {
+    cursor: not-allowed;
+}
+
+
+/* Уже есть в вашем CSS */
+.call-btn:disabled {
+    background: #6c757d !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+    transform: none !important;
+    pointer-events: none;
+}
+
+
+
+
+
+
+
 
     </style>
 </head>
@@ -1456,6 +1584,39 @@
         </div>
     </div>
 
+<!-- Модальное окно исходящего звонка -->
+<div id="outgoing-call-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📞 Исходящий звонок</h2>
+        </div>
+        <div class="modal-body">
+            <div class="caller-avatar" id="outgoing-caller-avatar">📞</div>
+            <div class="caller-name" id="outgoing-caller-name"></div>
+            <div class="call-status">Ожидание ответа...</div>
+            
+            <!-- Индикатор ожидания -->
+            <div class="calling-indicator" style="margin: 20px 0;">
+                <div class="calling-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            
+            <div class="call-controls">
+                <button class="call-btn-large end" onclick="cancelOutgoingCall()">❌ Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
     <!-- Модальное окно предпросмотра изображений -->
 <div id="image-preview-modal" class="modal">
     <div class="modal-content image-preview-content">
@@ -1525,6 +1686,27 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>🎤 Активный звонок</h2>
+<button class="minimize-btn" onclick="minimizeCallModal()" style="
+        position: absolute;
+        right: 15px;
+        top: 15px;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    ">🗕</button>
+
+
+
+
             </div>
             <div class="modal-body">
                 <div class="caller-avatar" id="active-caller-avatar">🎤</div>
@@ -1656,6 +1838,7 @@
         
         // Модальные окна
         const incomingCallModal = document.getElementById('incoming-call-modal');
+        const outgoingCallModal = document.getElementById('outgoing-call-modal'); // НОВОЕ
         const activeCallModal = document.getElementById('active-call-modal');
         const incomingCallerName = document.getElementById('incoming-caller-name');
         const activeCallerName = document.getElementById('active-caller-name');
@@ -1670,74 +1853,103 @@
         nicknameInput.value = userNick;
 
         // ========== ФУНКЦИИ UI ==========
-        function addMessage(text, type = 'system', sender = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message', type);
-            
-            if (type === 'other' && sender) {
-                const senderDiv = document.createElement('div');
-                senderDiv.classList.add('message-sender');
-                senderDiv.textContent = sender;
-                messageDiv.appendChild(senderDiv);
-            }
-            
-            const textSpan = document.createElement('span');
-            textSpan.textContent = text;
-            messageDiv.appendChild(textSpan);
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
+        
+// ========== ФУНКЦИИ UI ==========
+function addMessage(text, type = 'system', sender = null) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', type);
+    
+    if (type === 'other' && sender) {
+        const senderDiv = document.createElement('div');
+        senderDiv.classList.add('message-sender');
+        senderDiv.textContent = sender;
+        messageDiv.appendChild(senderDiv);
+    }
+    
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+    messageDiv.appendChild(textSpan);
+    
+    chatMessages.appendChild(messageDiv);
+    
+    // Плавная прокрутка вниз
+    setTimeout(() => {
+        chatMessages.scrollTo({
+            top: chatMessages.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 50);
+}
 
-        function updateUsersList() {
-            usersContainer.innerHTML = '';
-            
-            for (const [id, user] of users) {
-                if (id === userId) continue; // Не показываем себя
-                
-                const userDiv = document.createElement('div');
-                userDiv.className = 'user-item';
-                
-                const avatar = document.createElement('div');
-                avatar.className = 'user-avatar';
-                avatar.textContent = user.nick.charAt(0).toUpperCase();
-                
-                const info = document.createElement('div');
-                info.className = 'user-info';
-                
-                const name = document.createElement('div');
-                name.className = 'user-name';
-                name.textContent = user.nick;
-                
-                const status = document.createElement('div');
-                status.className = 'user-status';
-                
-                const dot = document.createElement('span');
-                dot.className = 'status-dot';
-                
-                status.appendChild(dot);
-                status.appendChild(document.createTextNode('В сети'));
-                
-                info.appendChild(name);
-                info.appendChild(status);
-                
-                const callBtn = document.createElement('button');
-                callBtn.className = 'call-btn';
-                callBtn.textContent = '📞';
-                callBtn.onclick = () => startCall(id, user.nick);
-                
-                if (user.inCall) {
-                    callBtn.classList.add('active');
-                    callBtn.style.background = '#f44336';
-                }
-                
-                userDiv.appendChild(avatar);
-                userDiv.appendChild(info);
-                userDiv.appendChild(callBtn);
-                
-                usersContainer.appendChild(userDiv);
-            }
+function updateUsersList() {
+    usersContainer.innerHTML = '';
+    
+    for (const [id, user] of users) {
+        if (id === userId) continue; // Не показываем себя
+        
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-item';
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'user-avatar';
+        avatar.textContent = user.nick.charAt(0).toUpperCase();
+        
+        const info = document.createElement('div');
+        info.className = 'user-info';
+        
+        const name = document.createElement('div');
+        name.className = 'user-name';
+        name.textContent = user.nick;
+        
+        const status = document.createElement('div');
+        status.className = 'user-status';
+        
+        const dot = document.createElement('span');
+        dot.className = 'status-dot';
+        
+        status.appendChild(dot);
+        status.appendChild(document.createTextNode('В сети'));
+        
+        info.appendChild(name);
+        info.appendChild(status);
+        
+        const callBtn = document.createElement('button');
+        callBtn.className = 'call-btn';
+        
+        // Проверяем, можно ли звонить
+        if (user.inCall) {
+            // Если пользователь уже в звонке - блокируем кнопку
+            callBtn.textContent = '🔴';
+            callBtn.style.background = '#6c757d';
+            callBtn.style.cursor = 'not-allowed';
+            callBtn.title = 'Пользователь уже разговаривает';
+            callBtn.disabled = true;
+        } else {
+            // Если пользователь свободен - активная кнопка
+            callBtn.textContent = '📞';
+            callBtn.onclick = () => startCall(id, user.nick);
         }
+        
+        userDiv.appendChild(avatar);
+        userDiv.appendChild(info);
+        userDiv.appendChild(callBtn);
+        
+        usersContainer.appendChild(userDiv);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         function updateConnectionStatus(connected) {
             if (connected) {
@@ -1748,6 +1960,46 @@
                 statusBadge.className = 'status-badge disconnected';
             }
         }
+
+// Добавьте после функции updateConnectionStatus()
+function toggleRoomControls(disabled) {
+    const roomSelect = document.getElementById('room-select');
+    const roomPassword = document.getElementById('room-password');
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    
+    roomSelect.disabled = disabled;
+    roomPassword.disabled = disabled;
+    joinRoomBtn.disabled = disabled;
+    
+    if (disabled) {
+        roomSelect.style.opacity = '0.5';
+        roomSelect.style.cursor = 'not-allowed';
+        roomPassword.style.opacity = '0.5';
+        roomPassword.style.cursor = 'not-allowed';
+        roomPassword.placeholder = '⛔ Недоступно во время звонка';
+        joinRoomBtn.style.opacity = '0.5';
+        joinRoomBtn.style.cursor = 'not-allowed';
+        joinRoomBtn.style.pointerEvents = 'none';
+        joinRoomBtn.title = 'Нельзя сменить комнату во время звонка';
+    } else {
+        roomSelect.style.opacity = '1';
+        roomSelect.style.cursor = 'pointer';
+        roomPassword.style.opacity = '1';
+        roomPassword.style.cursor = 'text';
+        roomPassword.placeholder = 'Пароль (если нужен)';
+        joinRoomBtn.style.opacity = '1';
+        joinRoomBtn.style.cursor = 'pointer';
+        joinRoomBtn.style.pointerEvents = 'auto';
+        joinRoomBtn.title = 'Присоединиться';
+    }
+}
+
+
+
+
+
+
+
 
 // Обновление состояния кнопки прикрепления файлов
 function updateAttachButtonState(roomNumber) {
@@ -1897,12 +2149,14 @@ if (roomNumber === 0) {
                             break;
                             
                         case 'call-answer':
-                            if (data.targetUserId === userId && peerConnection) {
-                                peerConnection.setRemoteDescription(data.answer);
-                                startActiveCall(currentCaller.nick);
-                                startQualityMonitoring();
-                            }
-                            break;
+    console.log('✅ Звонок принят');
+    if (data.targetUserId === userId && peerConnection) {
+        peerConnection.setRemoteDescription(data.answer);
+        // Используем новую функцию для синхронизации
+        onCallAccepted();
+        startQualityMonitoring();
+    }
+    break;
                             
                         case 'ice-candidate':
                             if (data.targetUserId === userId && peerConnection) {
@@ -1911,19 +2165,60 @@ if (roomNumber === 0) {
                             break;
                             
                         case 'call-declined':
-                            if (data.targetUserId === userId) {
-                                addMessage('📞 Звонок отклонен', 'system');
-                                cleanupCall();
-                            }
-                            break;
+    if (data.targetUserId === userId) {
+        addMessage('📞 Звонок отклонен', 'system');
+        // Проверяем, что модальное окно существует перед скрытием
+        if (outgoingCallModal && outgoingCallModal.classList) {
+            outgoingCallModal.classList.remove('active');
+        }
+        cleanupCall();
+        
+        if (data.callerId) {
+            const user = users.get(data.callerId);
+            if (user) {
+                user.inCall = false;
+                updateUsersList();
+            }
+        }
+    }
+    break;
+
+    case 'call_cancelled':
+    if (data.targetUserId === userId) {
+        // Скрываем окно входящего звонка у вызываемого пользователя
+        hideIncomingCall();
+        cleanupCall();
+        addMessage('📞 Вызывающий абонент отменил звонок', 'system');
+        
+        if (data.callerId) {
+            const user = users.get(data.callerId);
+            if (user) {
+                user.inCall = false;
+                updateUsersList();
+            }
+        }
+    }
+    break;
+
+
+
                             
                         case 'call-ended':
-                            if (data.targetUserId === userId) {
-                                addMessage('📞 Звонок завершен', 'system');
-                                hideActiveCallModal();
-                                cleanupCall();
-                            }
-                            break;
+    if (data.targetUserId === userId) {
+        addMessage('📞 Звонок завершен', 'system');
+        hideActiveCallModal();
+        cleanupCall();
+        
+        // Добавьте эти строки:
+        if (data.callerId) {
+            const user = users.get(data.callerId);
+            if (user) {
+                user.inCall = false;
+                updateUsersList();
+            }
+        }
+    }
+    break;
                             
                         case 'user_in_call':
                             const user = users.get(data.user);
@@ -1974,6 +2269,18 @@ if (roomNumber === 0) {
         }
 
         // ========== ГОЛОСОВЫЕ ЗВОНКИ ==========
+
+function isCallOngoing() {
+    return peerConnection !== null && 
+           (peerConnection.connectionState === 'connected' || 
+            peerConnection.connectionState === 'connecting' ||
+            peerConnection.connectionState === 'checking');
+}
+
+
+
+
+
         
         // Инициализация аудио с высоким качеством
         async function initAudio() {
@@ -2175,7 +2482,7 @@ function handleVisibilityChange() {
         console.log('Приложение в фоне');
         
         // Убеждаемся что аудио поток активен
-        if (localStream && activeCallModal.classList.contains('active')) {
+        if (localStream && isCallActive()) {
             localStream.getTracks().forEach(track => {
                 if (track.kind === 'audio') {
                     track.enabled = true;
@@ -2280,158 +2587,300 @@ function handleVisibilityChange() {
         }
 
         // Начать звонок
-        async function startCall(targetUserId, targetNick) {
-            if (currentRoom === 0) {
-                addMessage('❌ В прихожей нельзя совершать звонки', 'system');
-                return;
-            }
-            
-            if (!await initAudio()) {
-                return;
-            }
-            
-            createPeerConnection(targetUserId);
-            
-            try {
-                const offer = await peerConnection.createOffer({
-                    offerToReceiveAudio: true,
-                    voiceActivityDetection: true
-                });
-                
-                await peerConnection.setLocalDescription(offer);
-                
-                ws.send(JSON.stringify({
-                    type: 'call-offer',
-                    offer: offer,
-                    targetUserId: targetUserId,
-                    callerId: userId,
-                    callerNick: userNick,
-                    user: userId
-                }));
-                
-                currentCaller = {
-                    userId: targetUserId,
-                    nick: targetNick
-                };
-                
-                addMessage(`📞 Звонок пользователю ${targetNick}...`, 'system');
-                
-            } catch (err) {
-                console.error('Ошибка создания звонка:', err);
-                addMessage('❌ Не удалось начать звонок', 'system');
-                cleanupCall();
-            }
+async function startCall(targetUserId, targetNick) {
+    // Проверяем, можно ли звонить этому пользователю
+    if (!canCallUser(targetUserId)) {
+        const targetUser = users.get(targetUserId);
+        if (targetUser && targetUser.inCall) {
+            addMessage(`❌ Пользователь ${targetNick} уже разговаривает`, 'system');
+        } else if (currentCaller && currentCaller.userId === targetUserId) {
+            addMessage(`❌ Вы уже разговариваете с ${targetNick}`, 'system');
         }
+        return;
+    }
+    
+    if (currentRoom === 0) {
+        addMessage('❌ В прихожей нельзя совершать звонки', 'system');
+        return;
+    }
+    
+    if (!await initAudio()) {
+        return;
+    }
+    
+    createPeerConnection(targetUserId);
+    
+    try {
+        const offer = await peerConnection.createOffer({
+            offerToReceiveAudio: true,
+            voiceActivityDetection: true
+        });
+        
+        await peerConnection.setLocalDescription(offer);
+        
+        ws.send(JSON.stringify({
+            type: 'call-offer',
+            offer: offer,
+            targetUserId: targetUserId,
+            callerId: userId,
+            callerNick: userNick,
+            user: userId
+        }));
+        
+        currentCaller = {
+            userId: targetUserId,
+            nick: targetNick
+        };
+        
+        // Показываем модальное окно исходящего звонка
+        showOutgoingCall(targetNick);
+        
+    } catch (err) {
+        console.error('Ошибка создания звонка:', err);
+        addMessage('❌ Не удалось начать звонок', 'system');
+        cleanupCall();
+    }
+}
 
         // Показать входящий звонок
-        function showIncomingCall(callerNick, offer, callerId) {
-            currentCaller = {
-                userId: callerId,
-                nick: callerNick,
-                offer: offer
-            };
-            
-            incomingCallerName.textContent = callerNick;
-            incomingCallModal.classList.add('active');
-        }
+function showIncomingCall(callerNick, offer, callerId) {
+    console.log('📞 Входящий звонок от:', callerNick); // Для отладки
+    
+    currentCaller = {
+        userId: callerId,
+        nick: callerNick,
+        offer: offer
+    };
+    
+    incomingCallerName.textContent = callerNick;
+    
+    // Скрываем активное окно звонка если оно открыто
+    if (activeCallModal.classList.contains('active')) {
+        activeCallModal.classList.remove('active');
+    }
+    
+    // Удаляем индикатор если он есть (свернутый звонок)
+    const indicator = document.getElementById('call-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+    
+    // Показываем модальное окно входящего звонка
+    incomingCallModal.classList.add('active');
+    
+    // Воспроизводим звуковой сигнал
+    try {
+        const audio = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8AP8A/gD9APwA+wD6APkA+AD3APYA9QD0APMA8gDxAPAA7wDuAO0A7ADrAOoA6QDoAOcA5gDlAOQA4wDiA+AA');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log('Не удалось воспроизвести звук:', e));
+    } catch (e) {
+        console.log('Ошибка воспроизведения звука:', e);
+    }
+}
+
+// Показать окно исходящего звонка
+function showOutgoingCall(targetNick) {
+    document.getElementById('outgoing-caller-name').textContent = targetNick;
+    outgoingCallModal.classList.add('active');
+}
+
+// Скрыть окно исходящего звонка
+function hideOutgoingCall() {
+    outgoingCallModal.classList.remove('active');
+}
+
+// Синхронизация состояния звонка при ответе
+function onCallAccepted() {
+    // Скрываем окно исходящего звонка
+    hideOutgoingCall();
+    
+    // Показываем окно активного звонка
+    startActiveCall(currentCaller.nick);
+    
+    // Добавляем сообщение в чат
+    addMessage('✅ Звонок принят!', 'system');
+}
+
+
+
+
+
+
+
+
+
+// Замените существующую функцию cancelOutgoingCall()
+function cancelOutgoingCall() {
+    if (currentCaller) {
+        ws.send(JSON.stringify({
+            type: 'call_cancelled',
+            targetUserId: currentCaller.userId,
+            callerId: userId,
+            user: userId
+        }));
+        
+        hideOutgoingCall();
+        
+        // РАЗБЛОКИРУЕМ ЭЛЕМЕНТЫ
+        toggleRoomControls(false);
+        
+        cleanupCall();
+        addMessage('📞 Вызов отменен', 'system');
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         // Принять звонок
-        async function acceptCall() {
-            if (!await initAudio()) {
-                declineCall();
-                return;
-            }
-            
-            createPeerConnection(currentCaller.userId);
-            
-            try {
-                await peerConnection.setRemoteDescription(currentCaller.offer);
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                
-                ws.send(JSON.stringify({
-                    type: 'call-answer',
-                    answer: answer,
-                    targetUserId: currentCaller.userId,
-                    user: userId
-                }));
-                
-                hideIncomingCall();
-                startActiveCall(currentCaller.nick);
-                startQualityMonitoring();
-                
-            } catch (err) {
-                console.error('Ошибка принятия звонка:', err);
-                addMessage('❌ Не удалось принять звонок', 'system');
-                declineCall();
-            }
-        }
+async function acceptCall() {
+    if (!await initAudio()) {
+        declineCall();
+        return;
+    }
+    
+    createPeerConnection(currentCaller.userId);
+    
+    try {
+        await peerConnection.setRemoteDescription(currentCaller.offer);
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        ws.send(JSON.stringify({
+            type: 'call-answer',
+            answer: answer,
+            targetUserId: currentCaller.userId,
+            user: userId
+        }));
+        
+        hideIncomingCall();
+        hideOutgoingCall(); // НОВАЯ СТРОКА - скрывает окно исходящего звонка у вызывающего
+        startActiveCall(currentCaller.nick);
+        startQualityMonitoring();
+        
+    } catch (err) {
+        console.error('Ошибка принятия звонка:', err);
+        addMessage('❌ Не удалось принять звонок', 'system');
+        declineCall();
+    }
+}
 
-        // Отклонить звонок
-        function declineCall() {
-            ws.send(JSON.stringify({
-                type: 'call-declined',
-                targetUserId: currentCaller ? currentCaller.userId : null,
-                user: userId
-            }));
-            
-            hideIncomingCall();
-            cleanupCall();
-            addMessage('📞 Звонок отклонен', 'system');
-        }
+        // Замените существующую функцию declineCall()
+function declineCall() {
+    ws.send(JSON.stringify({
+        type: 'call-declined',
+        targetUserId: currentCaller ? currentCaller.userId : null,
+        callerId: userId,
+        user: userId
+    }));
+    
+    hideIncomingCall();
+    hideOutgoingCall();
+    
+    // РАЗБЛОКИРУЕМ ЭЛЕМЕНТЫ (на случай если звонок был отклонен)
+    toggleRoomControls(false);
+    
+    cleanupCall();
+    addMessage('📞 Звонок отклонен', 'system');
+}
 
-        // Начать активный звонок
-        function startActiveCall(nick) {
-            activeCallerName.textContent = nick;
-            activeCallModal.classList.add('active');
-            startCallTimer();
-            startVoiceVisualization();
-        }
+        // Замените существующую функцию startActiveCall()
+function startActiveCall(nick) {
+    activeCallerName.textContent = nick;
+    activeCallModal.classList.add('active');
+    startCallTimer();
+    startVoiceVisualization();
+    
+    // БЛОКИРУЕМ ВОЗМОЖНОСТЬ СМЕНЫ КОМНАТЫ
+    toggleRoomControls(true);
+    
+    // Добавляем предупреждение в чат
+    addMessage('🔒 Смена комнаты заблокирована до окончания звонка', 'system');
+}
 
-        // Завершить звонок
-        function endCall() {
-            ws.send(JSON.stringify({
-                type: 'call-ended',
-                targetUserId: currentCaller ? currentCaller.userId : null,
-                user: userId
-            }));
-            
-            hideActiveCallModal();
-            hideIncomingCall();
-            cleanupCall();
-            updateUserCallStatus(false);
-            addMessage('📞 Звонок завершен', 'system');
-        }
+// Замените существующую функцию endCall()
+function endCall() {
+    ws.send(JSON.stringify({
+        type: 'call-ended',
+        targetUserId: currentCaller ? currentCaller.userId : null,
+        callerId: userId,
+        user: userId
+    }));
+    
+    hideActiveCallModal();
+    hideIncomingCall();
+    hideOutgoingCall();
+    
+    // РАЗБЛОКИРУЕМ ВОЗМОЖНОСТЬ СМЕНЫ КОМНАТЫ
+    toggleRoomControls(false);
+    
+    cleanupCall();
+    updateUserCallStatus(false);
+    addMessage('📞 Звонок завершен', 'system');
+    
+    currentCaller = null;
+    
+    const indicator = document.getElementById('call-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
 
-        // Очистка ресурсов звонка
-        function cleanupCall() {
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
-            if (audioContext) {
-                audioContext.close();
-                audioContext = null;
-            }
+        // Замените существующую функцию cleanupCall()
+function cleanupCall() {
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
 
-            remoteStream = null;
-            currentCaller = null;
-            isMuted = false;
-            
-            stopCallTimer();
-            stopVoiceVisualization();
-            
-            if (muteBtn) {
-                muteBtn.textContent = '🔊';
-                muteBtn.classList.remove('active');
-            }
+    remoteStream = null;
+    currentCaller = null;
+    isMuted = false;
+    
+    stopCallTimer();
+    stopVoiceVisualization();
+    
+    if (muteBtn) {
+        muteBtn.textContent = '🔊';
+        muteBtn.classList.remove('active');
+    }
+
+    removeCallIndicator();
+    
+    // ВАЖНО: разблокируем при любом завершении звонка
+    toggleRoomControls(false);
+
+// Обновляем список пользователей при завершении звонка
+    if (currentCaller && currentCaller.userId) {
+        const user = users.get(currentCaller.userId);
+        if (user) {
+            user.inCall = false;
         }
+    }
+    updateUsersList();
+
+
+}
 
         // Переключить микрофон
         function toggleMute() {
@@ -2587,6 +3036,75 @@ function handleVisibilityChange() {
             activeCallModal.classList.remove('active');
         }
 
+// Функция для сворачивания модального окна звонка
+function minimizeCallModal() {
+    if (activeCallModal.classList.contains('active')) {
+        activeCallModal.classList.remove('active');
+        addMessage('📞 Звонок продолжается в фоне (окно свернуто)', 'system');
+        
+        // Показываем индикатор активного звонка в шапке
+        showCallIndicator();
+    }
+}
+
+// Показать индикатор звонка в шапке
+function showCallIndicator() {
+    let indicator = document.getElementById('call-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'call-indicator';
+        indicator.innerHTML = '📞 Активный звонок ⚫';
+        indicator.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 2000;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: pulse 2s infinite;
+        `;
+        indicator.onclick = () => {
+            activeCallModal.classList.add('active');
+            indicator.remove();
+        };
+        document.body.appendChild(indicator);
+    }
+}
+
+// Удаляет индикатор активного звонка, если он есть
+function removeCallIndicator() {
+    const indicator = document.getElementById('call-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+
+// Функция для возврата к звонку (если понадобится)
+function restoreCallModal() {
+    activeCallModal.classList.add('active');
+    const indicator = document.getElementById('call-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
         // ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
         
         // Отправка сообщения
@@ -2632,16 +3150,25 @@ function handleVisibilityChange() {
             connectToRoom(room, password);
         });
 
-        // Закрытие модальных окон по ESC
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (incomingCallModal.classList.contains('active')) {
-                    declineCall();
-                } else if (activeCallModal.classList.contains('active')) {
-                    endCall();
-                }
-            }
-        });
+       // Закрытие модальных окон по ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        if (incomingCallModal.classList.contains('active')) {
+            declineCall();
+        } else if (outgoingCallModal.classList.contains('active')) { // НОВОЕ
+            cancelOutgoingCall();
+        } else if (activeCallModal.classList.contains('active')) {
+            minimizeCallModal();
+            e.preventDefault();
+        } else if (imagePreviewModal.classList.contains('active')) {
+            closeImagePreview();
+        } else if (pdfPreviewModal.classList.contains('active')) {
+            closePdfPreview();
+        } else if (docPreviewModal.classList.contains('active')) {
+            closeDocPreview();
+        }
+    }
+});
 
         // Начальное подключение
         connectToRoom(0);
@@ -2737,8 +3264,79 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// Проверка, идет ли звонок в данный момент
+function isCallActive() {
+    return (peerConnection !== null && 
+            peerConnection.connectionState === 'connected') || 
+            activeCallModal.classList.contains('active') ||
+            document.getElementById('call-indicator') !== null;
+}
+
+// Проверка, можно ли звонить пользователю
+function canCallUser(targetUserId) {
+    // Нельзя звонить самому себе
+    if (targetUserId === userId) {
+        return false;
+    }
+    
+    // Если есть активный звонок с этим пользователем
+    if (currentCaller && currentCaller.userId === targetUserId) {
+        return false;
+    }
+    
+    // Если пользователь уже в звонке
+    const targetUser = users.get(targetUserId);
+    if (targetUser && targetUser.inCall) {
+        return false;
+    }
+    
+    return true;
+}
+
+
+
+// Проверка статуса звонка
+function checkCallStatus() {
+    console.log('Текущий caller:', currentCaller);
+    console.log('Модальное окно входящего звонка активно:', incomingCallModal.classList.contains('active'));
+    console.log('Модальное окно активного звонка активно:', activeCallModal.classList.contains('active'));
+    console.log('Индикатор есть:', document.getElementById('call-indicator') !== null);
+}
+
+
+
+
+
+
+// Конвертация ArrayBuffer в Base64
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
+// Конвертация Base64 в ArrayBuffer
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
 // Отправка файла
-async function sendFile(file) {
+// Отправка файла
+async function sendFile(file) { 
+console.log('sendFile called');
+console.log('isCallActive type:', typeof isCallActive);
+console.log('ws readyState:', ws?.readyState);
+console.log('currentRoom:', currentRoom);
     if (currentRoom === 0) {
         addMessage('❌ В прихожей нельзя отправлять файлы', 'system');
         return;
@@ -2752,6 +3350,11 @@ async function sendFile(file) {
     if (file.size > MAX_FILE_SIZE) {
         addMessage(`❌ Файл слишком большой (макс. ${formatFileSize(MAX_FILE_SIZE)})`, 'system');
         return;
+    }
+    
+    // Проверяем, идет ли звонок (ЭТА СТРОКА НОВАЯ)
+    if (isCallActive()) {
+        addMessage('📞 Отправляю файл во время разговора...', 'system');
     }
     
     // Показываем прогресс загрузки
@@ -2777,7 +3380,6 @@ async function sendFile(file) {
         // Отправляем через WebSocket
         ws.send(JSON.stringify(fileMessage));
         
-        
         // Убираем индикатор прогресса
         hideUploadProgress(file.name);
         
@@ -2786,17 +3388,6 @@ async function sendFile(file) {
         addMessage('❌ Ошибка при отправке файла', 'system');
         hideUploadProgress(file.name);
     }
-}
-
-// Конвертация ArrayBuffer в Base64
-function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
 }
 
 // Конвертация Base64 в ArrayBuffer
@@ -3199,19 +3790,32 @@ docPreviewModal.addEventListener('click', (e) => {
     }
 });
 
-// Закрытие по клавише ESC
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        // Проверяем, какое модальное окно активно
-        if (imagePreviewModal.classList.contains('active')) {
-            closeImagePreview();
-        } else if (pdfPreviewModal.classList.contains('active')) {
-            closePdfPreview();
-        } else if (docPreviewModal.classList.contains('active')) {
-            closeDocPreview();
-        }
+// Добавьте после существующих обработчиков для других модальных окон
+activeCallModal.addEventListener('click', (e) => {
+    // Если кликнули именно на фон (сам модал), а не на контент
+    if (e.target === activeCallModal) {
+        minimizeCallModal();
     }
 });
+
+// Предотвращаем закрытие при клике на контент модального окна
+document.querySelector('#active-call-modal .modal-content').addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Предотвращаем закрытие при клике на контент модального окна
 document.querySelectorAll('.modal-content').forEach(content => {
@@ -3230,18 +3834,6 @@ document.querySelectorAll('.modal-content').forEach(content => {
 
 
 
-// Улучшенная прокрутка для мобильных
-function scrollToBottom() {
-    const messagesContainer = document.getElementById('chat-messages');
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-// Автоматическая прокрутка при добавлении новых сообщений
-const originalAddMessage = addMessage;
-addMessage = function(text, type = 'system', sender = null) {
-    originalAddMessage(text, type, sender);
-    setTimeout(scrollToBottom, 100);
-};
 
 
 
